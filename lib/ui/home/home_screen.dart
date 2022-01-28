@@ -1,12 +1,21 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:intl/intl.dart';
+import 'package:iot_demo/blocs/home/home_bloc.dart';
+import 'package:iot_demo/models/sensor_sub.dart';
 import 'package:iot_demo/network/apis.dart';
+import 'package:iot_demo/network/mqtt.dart';
+import 'package:iot_demo/ui/home/living_room_screen.dart';
 import 'package:iot_demo/ui/home/profile_screen.dart';
+import 'package:mqtt_client/mqtt_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:mqtt_client/mqtt_server_client.dart' as mqttServer;
+import 'package:mqtt_client/mqtt_client.dart' as mqtt;
 class HomeScreen extends StatelessWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
@@ -16,47 +25,32 @@ class HomeScreen extends StatelessWidget {
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.dark));
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
-
-    return  Scaffold(
-          //extendBodyBehindAppBar: true,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            automaticallyImplyLeading: false,
-            elevation: 0,
-            title: Container(
-              child: Text(
-                'IOT Smart Home',
-                style: Theme.of(context).textTheme.caption!.copyWith(
-                      color: Colors.blue,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<HomeBloc>(
+            create: (_) => HomeBloc()..add(HomeEventStated())),
+      ],
+      child:Scaffold(
+        //extendBodyBehindAppBar: true,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          automaticallyImplyLeading: false,
+          elevation: 0,
+          title: Container(
+            child: Text(
+              'IOT Smart Home',
+              style: Theme.of(context).textTheme.caption!.copyWith(
+                color: Colors.blue,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
               ),
             ),
-            actions: [
-              GestureDetector(
-                onTap: () {},
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 20),
-                  padding: const EdgeInsets.all(6.5),
-                  decoration: BoxDecoration(
-                    color: Colors.black12,
-                    border: Border.all(
-                      width: 1,
-                      color: Colors.blue.withOpacity(0.5),
-                    ),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.search_outlined,
-                    color: Colors.black,
-                  ),
-                ),
-              ),
-            ],
           ),
-          body: BuildHomeScreen(),
-        );
+        ),
+        body: BuildHomeScreen(),
+      )
+    );
+
   }
 }
 
@@ -69,14 +63,129 @@ class BuildHomeScreen extends StatefulWidget {
 
 class _BuildHomeScreenState extends State<BuildHomeScreen>
     with SingleTickerProviderStateMixin {
+
   String avatar = '';
   TabController? _tabController;
-  Api? api ;
+  HomeBloc? homeBloc;
+//  var mqtt= MQTT();
+  String humidityAir='...';
+  String temperature='...';
+
+  String broker           = 'broker.mqttdashboard.com';
+  int port                = 1883;
+  String clientIdentifier = 'flutter';
+
+  late mqttServer.MqttServerClient client;
+  late mqtt.MqttConnectionState connectionState;
+
+  StreamSubscription? subscription;
+
+  void _subscribeToTopic(String topic) {
+    if (connectionState == mqtt.MqttConnectionState.connected) {
+      print('[MQTT client] Subscribing to ${topic.trim()}');
+      client.subscribe(topic, mqtt.MqttQos.exactlyOnce);
+
+    }
+    print('[MQTT client] onScribe');
+
+  }
+
+  void _connect() async {
+    client = mqttServer.MqttServerClient('broker.mqttdashboard.com','');
+    client.logging(on: false);
+    client.keepAlivePeriod = 30;
+    client.onDisconnected = _onDisconnected;
+
+    final mqtt.MqttConnectMessage connMess = mqtt.MqttConnectMessage()
+        .withClientIdentifier(clientIdentifier)
+        .startClean() // Non persistent session for testing
+        .keepAliveFor(30)
+        .withWillQos(mqtt.MqttQos.atMostOnce);
+    print('[MQTT client] MQTT client connecting....');
+    client.connectionMessage = connMess;
+
+    try {
+      await client.connect('','');
+    } catch (e) {
+      print('lỗi rồi, disconnect thôi');
+      _disconnect();
+    }
+
+    /// Check if we are connected
+    if (client.connectionState == mqtt.MqttConnectionState.connected) {
+      print('[MQTT client] connected');
+      setState(() {
+        connectionState = client.connectionStatus.state;
+      });
+    } else {
+      print('[MQTT client] ERROR: MQTT client connection failed - '
+          'disconnecting, state is ${client.connectionState}');
+      _disconnect();
+    }
+
+    /// The client has a change notifier object(see the Observable class) which we then listen to to get
+    /// notifications of published updates to each subscribed topic.
+    subscription = client.updates.listen(_onMessage);
+
+     _subscribeToTopic("demo");
+
+    // const pubTopic = 'lam1';
+    // final builder = MqttClientPayloadBuilder();
+    // builder.addString('Hello MQTT');
+    // client.publishMessage(pubTopic, MqttQos.atLeastOnce, builder.payload);
+  }
+
+  void _disconnect() {
+    print('[MQTT client] _disconnect()');
+    client.disconnect();
+    _onDisconnected();
+  }
+
+  void _onDisconnected() {
+    // setState(() {
+    //   //topics.clear();
+    //   connectionState = client.connectionState;
+    //   client = null;
+    //   subscription!.cancel();
+    //   subscription = null;
+    // });
+    print('[MQTT client] MQTT client disconnected');
+  }
+
+  void _onMessage(List<mqtt.MqttReceivedMessage> event) {
+    print(event.length);
+    final mqtt.MqttPublishMessage recMess =
+    event[0].payload as mqtt.MqttPublishMessage;
+    final String message =
+    mqtt.MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
+    print('[MQTT client] MQTT message: topic is <${event[0].topic}>, '
+        'payload is <-- ${message} -->');
+    print(client.connectionState);
+    print("[MQTT client] message with topic: ${event[0].topic}");
+    print("[MQTT client] message with message: ${message}");
+    Sensor sensor= Sensor();
+    try {
+      Map<String,dynamic> results =  json.decode(message);
+       sensor = Sensor.fromJson(results);
+    } catch (e) {
+     print(e);
+    }
+    setState(() {
+      humidityAir = sensor.humidityAir.toString();
+      temperature=sensor.temperature.toString();
+    });
+  }
+
+
+
+
 
   @override
   void initState() {
     // TODO: implement initState
     _tabController = TabController(length: 4, vsync: this);
+    _connect();
+ //   mqtt.publishTopic('pubTopic', 'message');
     super.initState();
   }
 
@@ -93,23 +202,25 @@ class _BuildHomeScreenState extends State<BuildHomeScreen>
               Tab(
                 child: Icon(
                   Icons.home,
+                  size: 32,
                 ),
               ),
               Tab(
                 child: Icon(
                   Icons.person,
+                  size: 32,
                 ),
               ),
               Tab(
                 child: Icon(
                   Icons.notifications_none,
-                  color: Colors.black,
+                  size: 30,
                 ),
               ),
               Tab(
                 child: Icon(
-                  Icons.star_border_outlined,
-                  color: Colors.black,
+                  Icons.settings_outlined,
+                  size: 30,
                 ),
               ),
             ],
@@ -117,14 +228,20 @@ class _BuildHomeScreenState extends State<BuildHomeScreen>
             indicatorSize: TabBarIndicatorSize.tab,
           ),
           Expanded(
-            child: TabBarView(
-              children: [
-                _home(context),
-                ProFileScreen(),
-                _notify(context),
-                _rank(context)
-              ],
-              controller: _tabController,
+            child: Container(
+              decoration: const BoxDecoration(
+                border: Border( top: BorderSide(color: Colors.blueAccent,width: 0.8),),
+              ),
+              child: TabBarView(
+                children: [
+                  _home(context),
+                  //ProFileScreen(),
+                  _profile(context),
+                  _notify(context),
+                  _rank(context)
+                ],
+                controller: _tabController,
+              ),
             ),
           ),
         ],
@@ -134,72 +251,252 @@ class _BuildHomeScreenState extends State<BuildHomeScreen>
 
   Widget _home(BuildContext context) {
     Size size = MediaQuery.of(context).size;
-    return Container(
+
+    return SingleChildScrollView(
+      padding:const EdgeInsets.fromLTRB(0,5,0,10) ,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           GestureDetector(
             onTap: (){
-
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => LivingRoomScreen()),
+              );
             },
             child: Container(
               margin: const EdgeInsets.fromLTRB(5,10,0,0),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              padding:  const EdgeInsets.fromLTRB(10,0,20,5),
               width: size.width * 0.88,
               height: size.width * 0.4,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                  border: Border.all(color: Colors.blueAccent),
-                borderRadius: BorderRadius.circular(5),
+                  border: Border.all(color: Colors.blueAccent,width: 2),
+                borderRadius: BorderRadius.circular(8),
+
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Align(
-                    alignment: Alignment.topLeft,
-                    child: Image.asset(
-                      "assets/images/introduce1.jpg",
-                      width: size.width * 0.3,
-                    ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Align(
+                        alignment: Alignment.topLeft,
+                        child: Image.asset(
+                          "assets/images/living-room.png",
+                          width: size.width * 0.24,
+                        ),
+                      ),
+                      const Text(
+                        "Phòng khách",
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                      ),
+                    ],
                   ),
-                  const Text(
-                    "Phòng khách",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children:  <Widget>[
+                      Row(
+                        children: [
+                          Image.asset('assets/images/humidity.png', width: 40,),
+                          Text(humidityAir, style: TextStyle(color: Colors.black,fontWeight: FontWeight.bold),),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          Image.asset('assets/images/temperature.png', width: 40,),
+                          Text(temperature, style: TextStyle(color: Colors.black,fontWeight: FontWeight.bold),),
+                        ],
+                      ),
+
+                    ],
                   ),
                 ],
               ),
             ),
           ),
-
           GestureDetector(
             onTap: (){
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => LivingRoomScreen()),
+              );
             },
             child: Container(
               margin: const EdgeInsets.fromLTRB(5,10,0,0),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              padding:  const EdgeInsets.fromLTRB(10,0,20,5),
               width: size.width * 0.88,
               height: size.width * 0.4,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.blueAccent),
-                borderRadius: BorderRadius.circular(5),
+                border: Border.all(color: Colors.blueAccent,width: 2),
+                borderRadius: BorderRadius.circular(8),
+
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Align(
-                    alignment: Alignment.topCenter,
-                    child: Image.asset(
-                      "assets/images/introduce1.jpg",
-                      width: size.width * 0.3,
-                    ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Align(
+                        alignment: Alignment.topLeft,
+                        child: Image.asset(
+                       'assets/images/bedroom.png',
+                          width: size.width * 0.25,
+                        ),
+                      ),
+                      const Text(
+                        "Phòng ngủ",
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                      ),
+                    ],
                   ),
-                  const Text(
-                    "Phòng ngủ",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children:  <Widget>[
+                      Row(
+                        children: [
+                          Image.asset('assets/images/humidity.png', width: 40,),
+                          Text(humidityAir, style: TextStyle(color: Colors.black),),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          Image.asset('assets/images/temperature.png', width: 40,),
+                          Text(temperature, style: TextStyle(color: Colors.black),),
+                        ],
+                      ),
+
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: (){
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => LivingRoomScreen()),
+              );
+            },
+            child: Container(
+              margin: const EdgeInsets.fromLTRB(5,10,0,0),
+              padding:  const EdgeInsets.fromLTRB(10,0,20,5),
+              width: size.width * 0.88,
+              height: size.width * 0.4,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.blueAccent,width: 2),
+                borderRadius: BorderRadius.circular(8),
+
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Align(
+                        alignment: Alignment.topLeft,
+                        child: Image.asset(
+                          "assets/images/kitchen.png",
+                          width: size.width * 0.23,
+                        ),
+                      ),
+                      const Text(
+                        "Phòng bếp",
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                      ),
+                    ],
+                  ),
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children:  <Widget>[
+                      Row(
+                        children: [
+                          Image.asset('assets/images/humidity.png', width: 40,),
+                          Text(humidityAir, style: TextStyle(color: Colors.black),),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          Image.asset('assets/images/temperature.png', width: 40,),
+                          Text(temperature, style: TextStyle(color: Colors.black),),
+                        ],
+                      ),
+
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: (){
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => LivingRoomScreen()),
+              );
+            },
+            child: Container(
+              margin: const EdgeInsets.fromLTRB(5,10,0,0),
+              padding:  const EdgeInsets.fromLTRB(10,0,20,5),
+              width: size.width * 0.88,
+              height: size.width * 0.4,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.blueAccent,width: 2),
+                borderRadius: BorderRadius.circular(8),
+
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Align(
+                        alignment: Alignment.topLeft,
+                        child: Image.asset(
+                          "assets/images/introduce1.jpg",
+                          width: size.width * 0.3,
+                        ),
+                      ),
+                      const Text(
+                        "Phòng ngủ",
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                      ),
+                    ],
+                  ),
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children:  <Widget>[
+                      Row(
+                        children: [
+                          Image.asset('assets/images/humidity.png', width: 40,),
+                          Text(humidityAir , style: TextStyle(color: Colors.black),),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          Image.asset('assets/images/temperature.png', width: 40,),
+                          Text(temperature, style: TextStyle(color: Colors.black),),
+                        ],
+                      ),
+
+                    ],
                   ),
                 ],
               ),
@@ -230,5 +527,19 @@ class _BuildHomeScreenState extends State<BuildHomeScreen>
         margin: const EdgeInsets.only(top: 10), child: Text('rank'));
   }
 
+  // Future<bool> connectMqtt() async {
+  //   bool isConnect;
+  //   var mqtt= MQTT();
+  //   try {
+  //     mqtt.connect();
+  //
+  //   } on Exception catch (e) {
+  //     print(e);
+  //   }
+  //   return null;
+  // }
+
 
 }
+
+

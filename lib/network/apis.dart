@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:iot_demo/models/infor_res.dart';
 import 'package:iot_demo/models/login_res.dart';
+import 'package:iot_demo/models/sensors_res.dart';
 import 'package:iot_demo/models/signup_res.dart';
 import 'package:iot_demo/models/user_res.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
@@ -106,6 +107,25 @@ class Api {
           'https://huntsub.com/api/user/info', queryParameters: {'id':userId});
       if (response.statusCode == 200) {
         return InforResponse.fromJson(response.data);
+      } else {
+        print('There is some problem status code not 200');
+      }
+    } on Exception catch (e) {
+      print(e);
+    }
+    return null;
+  }
+
+  Future<SensorsResponse?> getSensors(String dateBegin, String dateEnd) async {
+    Dio dio = Dio();
+    //dio.options.headers["Authorization"] = "Bearer $token";
+    dio.interceptors.add(PrettyDioLogger());
+    Response response;
+    try {
+      response = await dio.get('http://192.168.44.103:3000/api/sensor', queryParameters: {'dateBegin':dateBegin, 'dateEnd':dateEnd});
+      if (response.statusCode == 200) {
+        print(response.data);
+        return SensorsResponse.fromJson(response.data);
       } else {
         print('There is some problem status code not 200');
       }
