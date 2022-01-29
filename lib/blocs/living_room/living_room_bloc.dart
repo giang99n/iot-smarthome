@@ -19,15 +19,15 @@ class LivingRoomBloc extends Bloc<LivingRoomEvents, LivingRoomState> {
     var now = DateTime.now();
     String currentDate = formatter.format(now);
 
-    var yesterday = DateTime.now().subtract(Duration(days:1));
-    String yesterdayDate = formatter.format(yesterday);
+    var endDay = DateTime.now().add(Duration(days:1));
+    String endDate = formatter.format(endDay);
 
     final apiRepository = Api();
     if (event is StartEvent) {
       yield LivingRoomInitState();
     } else if (event is LivingRoomEventStated) {
       yield LivingRoomLoadingState();
-      var data = await apiRepository.getSensors(currentDate,yesterdayDate);
+      var data = await apiRepository.getSensors(currentDate,endDate);
       if (data != null) {
         if (data!.code ==  200) {
           yield LivingRoomLoadedState(sensorsResponse: data);

@@ -37,7 +37,7 @@ class Body extends StatefulWidget {
 }
 
 class _BodyState extends State<Body> {
-  DateTime dateTime = DateTime.now();
+  Duration timer = Duration(hours:0, minutes: 0);
 
   Api? api;
   bool led1 = false;
@@ -217,23 +217,11 @@ class _BodyState extends State<Body> {
 
   void initState() {
     _connect();
-    dateTime = getDateTime();
+   // dateTime = getDateTime();
     super.initState();
   }
 
 
-  Widget buildTimePicker() => SizedBox(
-    height: 120,
-    width: 180,
-    child: CupertinoDatePicker(
-      initialDateTime: dateTime,
-      mode: CupertinoDatePickerMode.time,
-      minuteInterval: 1,
-      //use24hFormat: true,
-      onDateTimeChanged: (dateTime) =>
-          setState(() => this.dateTime = dateTime),
-    ),
-  );
 
   DateTime getDateTime() {
     final now = DateTime.now();
@@ -244,102 +232,6 @@ class _BodyState extends State<Body> {
   Widget build(BuildContext context) {
     Size size = MediaQuery.of(context).size;
     SensorsResponse sensorsResponse = SensorsResponse();
-
-
-    // void showDialog() {
-    //   showGeneralDialog(
-    //     barrierLabel: "Barrier",
-    //     barrierDismissible: true,
-    //     barrierColor: Colors.black.withOpacity(0.5),
-    //     transitionDuration: Duration(milliseconds: 200),
-    //     context: context,
-    //     pageBuilder: (_, __, ___) {
-    //       Device? device = Device.lamb1;
-    //       return Material(
-    //         shadowColor: Colors.transparent,
-    //         child: Align(
-    //           alignment: Alignment.center,
-    //           child: Container(
-    //             height: size.height * 0.65,
-    //             margin: EdgeInsets.only(left: 12, right: 12),
-    //             decoration: BoxDecoration(
-    //               color: Colors.white,
-    //               borderRadius: BorderRadius.circular(40),
-    //             ),
-    //             child: Column(
-    //               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-    //               children: [
-    //                 SizedBox(
-    //                   height: 5,
-    //                 ),
-    //                 ListTile(
-    //                   title: const Text('Hệ thống đèn'),
-    //                   leading: Radio<Device>(
-    //                     value: Device.lamb1,
-    //                     groupValue: device,
-    //                     onChanged: (Device? value) {
-    //                       setState(() {
-    //                         device = value;
-    //                       });
-    //                     },
-    //                   ),
-    //                 ),
-    //                 ListTile(
-    //                   title: const Text('Quạt điện'),
-    //                   leading: Radio<Device>(
-    //                     value: Device.fan,
-    //                     groupValue: device,
-    //                     onChanged: (Device? value) {
-    //                       setState(() {
-    //                         device = value;
-    //                       });
-    //                     },
-    //                   ),
-    //                 ),
-    //                 buildTimePicker(),
-    //
-    //
-    //                 // Container(
-    //                 //     alignment: Alignment.center,
-    //                 //     child: Column(
-    //                 //       mainAxisAlignment: MainAxisAlignment.center,
-    //                 //       crossAxisAlignment: CrossAxisAlignment.start,
-    //                 //       children: [
-    //                 //         Text(
-    //                 //             "Tiền điện: " ),
-    //                 //         SizedBox(
-    //                 //           height: 8,
-    //                 //         ),
-    //                 //         Text(
-    //                 //             "Tiền nước: " ),
-    //                 //         SizedBox(
-    //                 //           height: 8,
-    //                 //         ),
-    //                 //         Text(
-    //                 //             "Tiền dịch vụ: "),
-    //                 //       ],
-    //                 //     )),
-    //                 // Text(
-    //                 //   "Tổng: "
-    //                 // ),
-    //                 SizedBox(
-    //                   height: 8,
-    //                 ),
-    //               ],
-    //             ),
-    //           ),
-    //         ),
-    //       );
-    //     },
-    //     transitionBuilder: (_, anim, __, child) {
-    //       return SlideTransition(
-    //         position: Tween(begin: Offset(0, 1), end: Offset(0, 0))
-    //             .animate(anim),
-    //         child: child,
-    //       );
-    //     },
-    //   );
-    // }
 
 
     return Scaffold(
@@ -472,24 +364,31 @@ class _BodyState extends State<Body> {
                                       SizedBox(
                                         height: 120,
                                         width: 180,
-                                        child: CupertinoDatePicker(
-                                          initialDateTime: dateTime,
-                                          mode: CupertinoDatePickerMode.time,
-                                          minuteInterval: 1,
-                                          //use24hFormat: true,
-                                          onDateTimeChanged: (dateTime) =>
-                                              setState(() => this.dateTime = dateTime),
-                                        ),
+                                        child: CupertinoTimerPicker(
+                                          mode: CupertinoTimerPickerMode.hm,
+                                          onTimerDurationChanged: (value) {
+                                            setState(() => this.timer = value);
+                                          },
+                                        // child: CupertinoDatePicker(
+                                        //   initialDateTime: dateTime,
+                                        //   mode: CupertinoDatePickerMode.time,
+                                        //   minuteInterval: 1,
+                                        //   use24hFormat: true,
+                                        //   onDateTimeChanged: (dateTime) =>
+                                        //       setState(() => this.dateTime = dateTime),
+                                         ),
                                       ),
                                           const SizedBox(
                                             height: 15,
                                           ),
                                           SizedBox(
-                                            width: 250.0,
+                                            width: 280.0,
                                             child: RaisedButton(
                                               onPressed: () {
-                                                print (device.toString().substring(7));
-                                                publishTopic(device.toString().substring(7),'{"Status":"0","Timer":"0"}');
+                                                var time = timer.inMinutes;
+                                                print ('{"Status":"0","Timer":"$time"}');
+                                              //  print(timer.inHours);
+                                                publishTopic(device.toString().substring(7),'{"Status":"0","Timer":"$time"}');
                                                 Navigator.pop(context);
                                               },
                                               child: Text(
