@@ -122,7 +122,7 @@ class Api {
     dio.interceptors.add(PrettyDioLogger());
     Response response;
     try {
-      response = await dio.get('http://192.168.44.103:3000/api/sensor', queryParameters: {'dateBegin':dateBegin, 'dateEnd':dateEnd});
+      response = await dio.get('http://192.168.0.208:3000/api/sensor', queryParameters: {'dateBegin':dateBegin, 'dateEnd':dateEnd});
       if (response.statusCode == 200) {
         print(response.data);
         return SensorsResponse.fromJson(response.data);

@@ -527,17 +527,6 @@ class _BuildHomeScreenState extends State<BuildHomeScreen>
         margin: const EdgeInsets.only(top: 10), child: Text('rank'));
   }
 
-  // Future<bool> connectMqtt() async {
-  //   bool isConnect;
-  //   var mqtt= MQTT();
-  //   try {
-  //     mqtt.connect();
-  //
-  //   } on Exception catch (e) {
-  //     print(e);
-  //   }
-  //   return null;
-  // }
 
 
 }
