@@ -656,6 +656,12 @@ class _BodyState extends State<Body> {
                       context: context,
                       builder: (BuildContext context,) {
                        int t=30;
+                       String id ='';
+                       final pref = await SharedPreferences.getInstance();
+                       String idFan = (pref.getString('idFan') ?? "");
+                       String idPow = (pref.getString('idPow') ?? "");
+                       String idIncrease = (pref.getString('idIncrease') ?? "");
+                       String idReduce = (pref.getString('idReduce') ?? "");
                        // Future<int> loadData() async {
                        //   final SharedPreferences prefs = await SharedPreferences.getInstance();
                        //    int temp = prefs.getInt('temp') ?? 30;
@@ -673,6 +679,7 @@ class _BodyState extends State<Body> {
                        // }
                         bool fan=false;
                         bool pow=false;
+                       final apiRepository = Api();
                         //Future<int> temp= loadData() ;
                         return Dialog(
                           shape: RoundedRectangleBorder(
@@ -740,14 +747,14 @@ class _BodyState extends State<Body> {
                                             //           }
                                             //       }
                                             //     }),
-                                              Text(t.toString(),  style: const TextStyle(fontSize: 44,fontWeight: FontWeight.bold)),
-                                              fan?Image.asset(
+                                              pow?Text(t.toString(),  style: const TextStyle(fontSize: 44,fontWeight: FontWeight.bold)):Container(),
+                                              pow?(fan?Image.asset(
                                                 "assets/images/fan1.png",
                                                 width: 22,
                                               ):Image.asset(
                                                 "assets/images/fan0.png",
                                                 width: 22,
-                                              ),
+                                              )):Container(),
                                             ],
                                           ),
                                         ),
@@ -768,7 +775,9 @@ class _BodyState extends State<Body> {
                                                         )
                                                     )
                                                 ),
-                                                onPressed: (){
+                                                onPressed: () async {
+                                                  var dataSinal = await apiRepository.getSinal(idPow);
+                                                  publishTopic('remote',dataSinal.sinal);
                                                   setState(() {
                                                     if(pow){
                                                       pow=false;
@@ -780,7 +789,7 @@ class _BodyState extends State<Body> {
                                             ),
                                             ElevatedButton(
                                                 child: Text(
-                                                    "Pan".toUpperCase(),
+                                                    "Fan".toUpperCase(),
                                                     style: TextStyle(fontSize: 14)
                                                 ),
                                                 style: ButtonStyle(
@@ -794,7 +803,10 @@ class _BodyState extends State<Body> {
                                                     )
                                                 ),
                                                 onPressed: (){
-                                                  setState(() {
+                                                 // publishTopic('remote','fan');
+                                                  setState(() async {
+                                                    var dataSinal = await apiRepository.getSinal(idFan);
+                                                    publishTopic('remote',dataSinal.sinal);
                                                     if(fan){
                                                       fan=false;
                                                     }else{
@@ -818,9 +830,12 @@ class _BodyState extends State<Body> {
                                                         )
                                                     )
                                                 ),
-                                                onPressed: (){
+                                                onPressed: () async {
+                                                  var dataSinal = await apiRepository.getSinal(idIncrease);
+                                                  publishTopic('remote',dataSinal.sinal);
                                                   setState(() {
                                                       //tempChange(t);
+                                                   // publishTopic('remote','increase');
                                                     if(t<30){
                                                       t++;
                                                     }
@@ -844,6 +859,8 @@ class _BodyState extends State<Body> {
                                                     )
                                                 ),
                                                 onPressed: (){
+                                                  var dataSinal = await apiRepository.getSinal(idReduce);
+                                                  publishTopic('remote',dataSinal.sinal);
                                                   setState(() {
                                                     if(t>=10){
                                                       t--;

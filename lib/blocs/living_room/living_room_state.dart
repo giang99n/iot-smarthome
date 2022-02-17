@@ -16,7 +16,8 @@ class LivingRoomErrorState extends LivingRoomState {}
 class LivingRoomLoadedState extends LivingRoomState {
   final SensorsResponse sensorsResponse;
 
-  LivingRoomLoadedState({required this.sensorsResponse});
+
+  LivingRoomLoadedState({required this.sensorsResponse} );
 
   @override
   List<Object> get props => [sensorsResponse];

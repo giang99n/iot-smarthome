@@ -115,6 +115,24 @@ class Api {
     }
     return null;
   }
+  Future<InforResponse?> getSinal( String Id) async {
+    Dio dio = Dio();
+  //  dio.options.headers["Authorization"] = "Bearer $token";
+    dio.interceptors.add(PrettyDioLogger());
+    Response response;
+    try {
+      response = await dio.get(
+          'https://huntsub.com/api/user/info', queryParameters: {'id':Id});
+      if (response.statusCode == 200) {
+        return InforResponse.fromJson(response.data);
+      } else {
+        print('There is some problem status code not 200');
+      }
+    } on Exception catch (e) {
+      print(e);
+    }
+    return null;
+  }
 
   Future<SensorsResponse?> getSensors(String dateBegin, String dateEnd) async {
     Dio dio = Dio();

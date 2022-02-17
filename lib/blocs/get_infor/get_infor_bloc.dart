@@ -16,12 +16,12 @@ class GetInforBloc extends Bloc<GetInforEvents, GetInforState> {
     final apiRepository = Api();
     final pref = await SharedPreferences.getInstance();
     String token = (pref.getString('token') ?? "");
-    String userId = (pref.getString('userId') ?? "");
+    String Id = (pref.getString('Id') ?? "");
     if (event is StartEvent) {
       yield GetInforInitState();
     } else if (event is GetInforEventStated) {
       yield GetInforLoadingState();
-      var data = await apiRepository.getInFor(token, userId);
+      var data = await apiRepository.getSinal(token, Id);
       if (data != null) {
         if (data!.status ==  "success") {
           yield GetInforLoadedState(listInfor: data);

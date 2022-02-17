@@ -22,12 +22,17 @@ class LivingRoomBloc extends Bloc<LivingRoomEvents, LivingRoomState> {
     var endDay = DateTime.now().add(Duration(days:1));
     String endDate = formatter.format(endDay);
 
+    final pref = await SharedPreferences.getInstance();
+    String token = (pref.getString('token') ?? "");
+    String Id = (pref.getString('Id') ?? "");
+
     final apiRepository = Api();
     if (event is StartEvent) {
       yield LivingRoomInitState();
     } else if (event is LivingRoomEventStated) {
       yield LivingRoomLoadingState();
       var data = await apiRepository.getSensors(currentDate,endDate);
+      var dataSinal = await apiRepository.getSinal(token, Id);
       if (data != null) {
         if (data!.code ==  200) {
           yield LivingRoomLoadedState(sensorsResponse: data);
