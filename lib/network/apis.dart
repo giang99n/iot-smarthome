@@ -5,6 +5,7 @@ import 'package:iot_demo/models/infor_res.dart';
 import 'package:iot_demo/models/login_res.dart';
 import 'package:iot_demo/models/sensors_res.dart';
 import 'package:iot_demo/models/signup_res.dart';
+import 'package:iot_demo/models/sinal_res.dart';
 import 'package:iot_demo/models/user_res.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -115,7 +116,7 @@ class Api {
     }
     return null;
   }
-  Future<InforResponse?> getSinal( String Id) async {
+  Future<SinalResponse?> getSinal( String Id) async {
     Dio dio = Dio();
   //  dio.options.headers["Authorization"] = "Bearer $token";
     dio.interceptors.add(PrettyDioLogger());
@@ -124,7 +125,7 @@ class Api {
       response = await dio.get(
           'https://huntsub.com/api/user/info', queryParameters: {'id':Id});
       if (response.statusCode == 200) {
-        return InforResponse.fromJson(response.data);
+        return SinalResponse.fromJson(response.data);
       } else {
         print('There is some problem status code not 200');
       }

@@ -10,6 +10,7 @@ import 'package:iot_demo/configs/colors.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:iot_demo/models/sensor_sub.dart';
 import 'package:iot_demo/models/sensors_res.dart';
+import 'package:iot_demo/models/sinal_res.dart';
 import 'package:iot_demo/network/apis.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart' as mqttServer;
@@ -776,8 +777,8 @@ class _BodyState extends State<Body> {
                                                     )
                                                 ),
                                                 onPressed: () async {
-                                                  var dataSinal = await apiRepository.getSinal(idPow);
-                                                  publishTopic('remote',dataSinal.sinal);
+                                                  SinalResponse? dataSinal = await apiRepository.getSinal(idPow);
+                                                  publishTopic('remote',dataSinal!.data!.sinal.toString());
                                                   setState(() {
                                                     if(pow){
                                                       pow=false;
@@ -805,8 +806,9 @@ class _BodyState extends State<Body> {
                                                 onPressed: (){
                                                  // publishTopic('remote','fan');
                                                   setState(() async {
-                                                    var dataSinal = await apiRepository.getSinal(idFan);
-                                                    publishTopic('remote',dataSinal.sinal);
+                                                    SinalResponse? dataSinal = await apiRepository.getSinal(idFan);
+                                                    publishTopic('remote',dataSinal!.data!.sinal.toString());
+
                                                     if(fan){
                                                       fan=false;
                                                     }else{
@@ -831,8 +833,8 @@ class _BodyState extends State<Body> {
                                                     )
                                                 ),
                                                 onPressed: () async {
-                                                  var dataSinal = await apiRepository.getSinal(idIncrease);
-                                                  publishTopic('remote',dataSinal.sinal);
+                                                  SinalResponse? dataSinal = await apiRepository.getSinal(idIncrease);
+                                                  publishTopic('remote',dataSinal!.data!.sinal.toString());
                                                   setState(() {
                                                       //tempChange(t);
                                                    // publishTopic('remote','increase');
@@ -858,9 +860,9 @@ class _BodyState extends State<Body> {
                                                         )
                                                     )
                                                 ),
-                                                onPressed: (){
-                                                  var dataSinal = await apiRepository.getSinal(idReduce);
-                                                  publishTopic('remote',dataSinal.sinal);
+                                                onPressed: () async {
+                                                  SinalResponse? dataSinal = await apiRepository.getSinal(idReduce);
+                                                  publishTopic('remote',dataSinal!.data!.sinal.toString());
                                                   setState(() {
                                                     if(t>=10){
                                                       t--;
